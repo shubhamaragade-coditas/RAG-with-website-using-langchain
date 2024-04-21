@@ -1,0 +1,6 @@
+langchain
+-qU langchain-ai21
+langchain-groq
+langchainhub
+beautifulsoup4
+faiss-cpu

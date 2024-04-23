@@ -5,12 +5,12 @@ from langchain_community.document_loaders import WebBaseLoader
 from langchain_ai21 import AI21Embeddings
 from langchain import hub
 from langchain.chains import RetrievalQA
-from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 import asyncio
 from dotenv import load_dotenv
-load_dotenv()
-
 from langchain_core.prompts import ChatPromptTemplate
+
+load_dotenv()
 
 PROMPT: str = ""
 
@@ -26,7 +26,7 @@ def text_to_chunks(data: WebBaseLoader) -> list[str]:
 
 def generate_embeddings(chunks: list[str]) -> FAISS:
     """Generates embeddings for a list of text chunks using an AI21Embeddings model."""
-    embedding_model: AI21Embeddings = AI21Embeddings(api_key="fwdzNytyBGchKkhvhLmmK1e35qecVMgf")
+    embedding_model: AI21Embeddings = AI21Embeddings()
     vector_db: FAISS = FAISS.from_documents(documents=chunks, embedding=embedding_model)
     return vector_db
 
@@ -35,8 +35,6 @@ async def get_prompt() -> str:  # Specify return type as string
     """Retrieves a prompt from the langchain hub."""
     global PROMPT
     PROMPT = hub.pull("rlm/rag-prompt")
-    print(PROMPT)
-    # return prompt
 
 
 def get_answer_from_AI(
@@ -44,29 +42,14 @@ def get_answer_from_AI(
 ) -> str:  # Specify input and output types
     """Gets an answer to a question using a RetrievalQA chain with the provided vector store and question."""
 
-    # PROMPT: str = await get_prompt()+
-    llm: ChatGroq = ChatGroq(temperature=0, model_name="mixtral-8x7b-32768")
+    
+    llm = ChatGoogleGenerativeAI(model="gemini-pro")
 
     qa_chain: RetrievalQA = RetrievalQA.from_chain_type(
         llm, retriever=vector_db.as_retriever(), chain_type_kwargs={"prompt": PROMPT}
     )
 
     result: dict[str, str] = qa_chain.invoke({"query": question})
-    return result["result"]
-
-def ai_answer(vector_db: FAISS, question: str,data):
-    llm: ChatGroq = ChatGroq(temperature=0, model_name="mixtral-8x7b-32768", groq_api_key=os.getenv("GROQ_API_KEY"))
-
-    prompt = ChatPromptTemplate.from_messages([
-    ("system", "You have to the answer the questions using the give context. If the answer is not there in context say 'I dont know'."),
-    ("user", "{input}")
-    ])
-
-    qa_chain: RetrievalQA = RetrievalQA.from_chain_type(
-        llm, retriever=vector_db.as_retriever(), chain_type_kwargs={"prompt": prompt}
-    )
-
-    result: dict[str, str] = qa_chain.invoke({"input": question, "context": data})
     return result["result"]
 
 

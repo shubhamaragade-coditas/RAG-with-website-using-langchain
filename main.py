@@ -1,4 +1,3 @@
-import os
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import WebBaseLoader
@@ -8,12 +7,10 @@ from langchain.chains import RetrievalQA
 from langchain_google_genai import ChatGoogleGenerativeAI
 import asyncio
 from dotenv import load_dotenv
-from langchain_core.prompts import ChatPromptTemplate
 
 load_dotenv()
 
 PROMPT: str = ""
-
 
 def text_to_chunks(data: WebBaseLoader) -> list[str]:
     """Splits text data into chunks of a specified size with optional overlap."""
@@ -41,31 +38,36 @@ def get_answer_from_AI(
     vector_db: FAISS, question: str
 ) -> str:  # Specify input and output types
     """Gets an answer to a question using a RetrievalQA chain with the provided vector store and question."""
+    try:
+        llm = ChatGoogleGenerativeAI(model="gemini-pro")
 
-    
-    llm = ChatGoogleGenerativeAI(model="gemini-pro")
+        qa_chain: RetrievalQA = RetrievalQA.from_chain_type(
+            llm, retriever=vector_db.as_retriever(), chain_type_kwargs={"prompt": PROMPT}
+        )
 
-    qa_chain: RetrievalQA = RetrievalQA.from_chain_type(
-        llm, retriever=vector_db.as_retriever(), chain_type_kwargs={"prompt": PROMPT}
-    )
-
-    result: dict[str, str] = qa_chain.invoke({"query": question})
-    return result["result"]
+        result: dict[str, str] = qa_chain.invoke({"query": question})
+        return result["result"]
+    except Exception as e:
+        return f"An error occurred: {str(e)}"
 
 
 asyncio.run(get_prompt())
 
-loader = WebBaseLoader(input("Enter the url: "))
-data: str = loader.load()  # Type hint for data variable after loading
+try:
+    loader = WebBaseLoader(input("Enter the url: "))
+    data: str = loader.load()  # Type hint for data variable after loading
 
-chunks: list[str] = text_to_chunks(data=data)
-document_vector_db: FAISS = generate_embeddings(chunks=chunks)
+    chunks: list[str] = text_to_chunks(data=data)
+    document_vector_db: FAISS = generate_embeddings(chunks=chunks)
 
-ask: bool = True
-while ask:
-    query: str = input("Enter your questions: ")  # Type hint for query input
-    answer: str = get_answer_from_AI(vector_db=document_vector_db, question=query)
-    print(answer)
-
-    ask = int(input("Do you want to ask more?\n 0. No\n 1. Yes\n  "))
-
+    ask: bool = True
+    while ask:
+        query: str = input("Enter your questions: ")  # Type hint for query input
+        answer: str = get_answer_from_AI(vector_db=document_vector_db, question=query)
+        print(answer)
+        try:
+            ask = int(input("Do you want to ask more?\n 0. No\n 1. Yes\n  "))
+        except Exception:
+            print("Error: Please enter valid choice 0 or 1")
+except Exception as e:
+    print(f"An error occurred: {str(e)}")
